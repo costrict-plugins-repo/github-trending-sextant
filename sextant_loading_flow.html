@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sextant Loading Flow</title>
+<style>
+:root {
+  --color-border-tertiary:    #e2e8f0;
+  --color-border-secondary:   #cbd5e1;
+  --color-border-info:        #93c5fd;
+  --color-border-warning:     #fcd34d;
+  --color-border-success:     #86efac;
+  --color-background-primary: #ffffff;
+  --color-background-secondary:#f8fafc;
+  --color-background-success: #dcfce7;
+  --color-background-info:    #dbeafe;
+  --color-background-warning: #fef3c7;
+  --color-text-primary:       #1e293b;
+  --color-text-secondary:     #64748b;
+  --color-text-tertiary:      #94a3b8;
+  --color-text-success:       #16a34a;
+  --color-text-info:          #2563eb;
+  --color-text-warning:       #d97706;
+  --border-radius-lg:         8px;
+  --border-radius-md:         6px;
+  --font-mono:                'Consolas', 'Monaco', 'Courier New', monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f1f5f9;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.wrapper {
+  width: 100%;
+  max-width: 640px;
+}
+
+/* ── flow ── */
+.flow { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 0.5rem 0; }
+
+.step {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--border-radius-lg);
+  border: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-secondary);
+  text-align: center;
+  transition: border-color .2s;
+}
+.step-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); }
+.step-sub   { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+
+.step-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--border-radius-md);
+  margin-right: 4px;
+  font-weight: 500;
+}
+.tag-always { background: var(--color-background-success); color: var(--color-text-success); }
+.tag-cond   { background: var(--color-background-warning); color: var(--color-text-warning); }
+.tag-skill  { background: var(--color-background-info);    color: var(--color-text-info);    }
+
+/* ── arrow ── */
+.arrow-down {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border-secondary);
+  position: relative;
+  margin: 0 auto;
+}
+.arrow-down::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: -4px;
+  border-left: 4.5px solid transparent;
+  border-right: 4.5px solid transparent;
+  border-top: 5px solid var(--color-border-secondary);
+}
+
+/* ── branch ── */
+.branch-container { width: 100%; max-width: 600px; margin: 0 auto; }
+
+.diamond {
+  width: 100%;
+  max-width: 520px;
+  padding: 0.6rem 1rem;
+  border-radius: var(--border-radius-md);
+  border: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-secondary);
+  text-align: center;
+  margin: 0 auto;
+}
+
+.routes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.route {
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--border-radius-md);
+  border: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-primary);
+  cursor: pointer;
+  transition: border-color .2s, background .15s;
+  text-align: left;
+}
+.route:hover           { border-color: var(--color-border-secondary);  background: var(--color-background-secondary); }
+.route.active          { border-color: var(--color-border-info);        background: var(--color-background-info); }
+.route-name            { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.route-file            { font-size: 11px; color: var(--color-text-secondary); font-family: var(--font-mono); margin-top: 2px; }
+.route-key             { font-size: 10px; color: var(--color-text-tertiary); margin-top: 3px; font-style: italic; }
+.route.active .route-name { color: var(--color-text-info); }
+.route.active .route-key  { color: var(--color-text-info); opacity: 0.75; }
+
+/* ── injection block ── */
+.inject-block {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--color-border-tertiary);
+  background: var(--color-background-primary);
+}
+.inject-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0.4rem 0;
+}
+.inject-row + .inject-row {
+  border-top: 0.5px solid var(--color-border-tertiary);
+}
+.inject-icon {
+  font-size: 14px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+.inject-text {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.inject-text code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--color-background-secondary);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.inject-text .note {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
+}
+
+/* principles structure pills */
+.principles-structure {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.pill {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-weight: 500;
+}
+.pill-always { background: var(--color-background-success); color: var(--color-text-success); }
+.pill-gate   { background: #f1f5f9; color: var(--color-text-tertiary); border: 0.5px solid var(--color-border-secondary); }
+.pill-heavy  { background: #ede9fe; color: #7c3aed; }
+
+/* ── scale ── */
+.scale-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.scale-box {
+  flex: 1;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--border-radius-md);
+  border: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-primary);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .15s;
+}
+.scale-box.active            { border-color: var(--color-border-info); background: var(--color-background-info); }
+.scale-title                 { font-size: 12px; font-weight: 500; color: var(--color-text-primary); }
+.scale-sub                   { font-size: 11px; color: var(--color-text-tertiary); margin-top: 1px; }
+.scale-output                { font-size: 10px; color: var(--color-text-tertiary); margin-top: 3px; font-style: italic; }
+.scale-box.active .scale-title  { color: var(--color-text-info); }
+.scale-box.active .scale-sub    { color: var(--color-text-info); opacity: 0.75; }
+
+/* ── exempt branch ── */
+.exempt-branch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+  align-items: start;
+}
+.exempt-col { display: flex; flex-direction: column; align-items: center; }
+.branch-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-background-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: 99px;
+  padding: 1px 10px;
+  margin-bottom: 0;
+}
+.branch-label-yes { color: var(--color-text-warning); border-color: var(--color-border-warning); }
+.exempt-col .step { width: 100%; }
+.exempt-step { border-color: var(--color-border-warning) !important; background: var(--color-background-warning); }
+.exempt-step .step-title { color: var(--color-text-warning); }
+
+/* ── legend ── */
+.legend {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<div class="flow">
+
+  <!-- Step 1: User prompt -->
+  <div class="step" style="max-width:320px">
+    <div class="step-title">User prompt</div>
+    <div class="step-sub">Claude Code matches task type to a skill</div>
+  </div>
+  <div class="arrow-down"></div>
+
+  <!-- Step 2: Skill matching -->
+  <div class="branch-container">
+    <div class="diamond">
+      <div class="step-title">Skill matching</div>
+      <div class="step-sub">Claude Code selects the best sextant-* skill based on prompt</div>
+    </div>
+
+    <div class="routes" id="routes">
+      <div class="route" data-idx="0" onclick="selectRoute(0)">
+        <div class="route-name">Bug fix</div>
+        <div class="route-file">sextant-fix-bug</div>
+        <div class="route-key">disambiguation gate · surgical fix</div>
+      </div>
+      <div class="route" data-idx="1" onclick="selectRoute(1)">
+        <div class="route-name">New feature / module</div>
+        <div class="route-file">sextant-add-feature</div>
+        <div class="route-key">impact analysis before implementation</div>
+      </div>
+      <div class="route" data-idx="2" onclick="selectRoute(2)">
+        <div class="route-name">Modify / refactor</div>
+        <div class="route-file">sextant-modify-feature</div>
+        <div class="route-key">disambiguation gate · multi-step strategy</div>
+      </div>
+      <div class="route" data-idx="3" onclick="selectRoute(3)">
+        <div class="route-name">Code review</div>
+        <div class="route-file">sextant-review-code</div>
+        <div class="route-key">declares Review-only or Review+patch</div>
+      </div>
+      <div class="route" data-idx="4" onclick="selectRoute(4)">
+        <div class="route-name">Write tests</div>
+        <div class="route-file">sextant-write-tests</div>
+        <div class="route-key">bug-fix entry path · exit if still failing</div>
+      </div>
+      <div class="route" data-idx="5" onclick="selectRoute(5)">
+        <div class="route-name">Refine requirements</div>
+        <div class="route-file">sextant-refine-requirements</div>
+        <div class="route-key">🔴 ambiguities or decomposition request</div>
+      </div>
+      <div class="route" data-idx="6" onclick="selectRoute(6)">
+        <div class="route-name">Debug</div>
+        <div class="route-file">sextant-debug</div>
+        <div class="route-key">bisection · hands off to fix-bug</div>
+      </div>
+      <div class="route" data-idx="7" onclick="selectRoute(7)">
+        <div class="route-name">Ship / PR prep</div>
+        <div class="route-file">sextant-ship</div>
+        <div class="route-key">pre-ship checklist · PR description</div>
+      </div>
+      <div class="route" data-idx="8" onclick="selectRoute(8)">
+        <div class="route-name">Sprint planning</div>
+        <div class="route-file">sextant-plan</div>
+        <div class="route-key">dependency-ordered task list</div>
+      </div>
+      <div class="route" data-idx="9" onclick="selectRoute(9)">
+        <div class="route-name">Migration</div>
+        <div class="route-file">sextant-migrate</div>
+        <div class="route-key">leaf-first · per-module validation</div>
+      </div>
+      <div class="route" data-idx="10" onclick="selectRoute(10)">
+        <div class="route-name">Security audit</div>
+        <div class="route-file">sextant-security</div>
+        <div class="route-key">4-dimension: input · auth · data · deps</div>
+      </div>
+      <div class="route" data-idx="11" onclick="selectRoute(11)" style="grid-column:1/3;max-width:50%;justify-self:center;text-align:center">
+        <div class="route-name">General coding</div>
+        <div class="route-file">sextant</div>
+        <div class="route-key">fallback — no dynamic injection</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down"></div>
+
+  <!-- Step 3: Direct inclusion -->
+  <div class="step" style="border-color:var(--color-border-success)">
+    <div class="step-title">Skill loads via direct file inclusion</div>
+    <div class="step-sub">Content assembled at load time — single skill, zero hooks, no bash required</div>
+  </div>
+  <div class="arrow-down"></div>
+
+  <div class="inject-block">
+    <div class="inject-row" id="inject-principles">
+      <div class="inject-icon">
+        <span class="step-tag tag-always" style="margin:0;font-size:10px;padding:1px 6px">always</span>
+      </div>
+      <div class="inject-text" id="principles-label">
+        <code>principles/SKILL_BODY.md</code> — included via <code>!</code> file directive; front-loaded structure:
+        <div class="principles-structure">
+          <span class="pill pill-always">§0 baselines</span>
+          <span class="pill pill-always">§1 anti-patterns</span>
+          <span class="pill pill-always">§2 communication</span>
+          <span class="pill pill-gate">── lightweight gate ──</span>
+          <span class="pill pill-heavy">§3 task rules</span>
+          <span class="pill pill-heavy">§4 SOLID</span>
+          <span class="pill pill-heavy">§5 DRY/YAGNI</span>
+          <span class="pill pill-heavy">§6 architecture</span>
+        </div>
+      </div>
+    </div>
+    <div class="inject-row" id="inject-gitnexus">
+      <div class="inject-icon">
+        <span class="step-tag tag-always" style="margin:0;font-size:10px;padding:1px 6px">always</span>
+      </div>
+      <div class="inject-text" id="gitnexus-label">
+        <code>tool-gitnexus/SKILL_BODY.md</code> — always included; Claude applies it only when GitNexus MCP tools are available
+      </div>
+    </div>
+    <div class="inject-row" id="inject-workflow">
+      <div class="inject-icon">
+        <span class="step-tag tag-skill" style="margin:0;font-size:10px;padding:1px 6px">skill</span>
+      </div>
+      <div class="inject-text" id="workflow-label">
+        Task-specific workflow — select a task type above
+      </div>
+    </div>
+    <div class="inject-row" id="inject-feature" style="display:none">
+      <div class="inject-icon" style="font-size:14px;padding-top:2px">⚡</div>
+      <div class="inject-text" id="feature-label"></div>
+    </div>
+  </div>
+
+  <div class="arrow-down"></div>
+
+  <!-- Step 4: Scale assessment -->
+  <div style="width:100%;max-width:520px;margin:0 auto">
+    <div class="diamond">
+      <div class="step-title">Determine task scale</div>
+    </div>
+    <div class="scale-row" style="margin-top:8px" id="scales">
+      <div class="scale-box" data-s="0" onclick="selectScale(0)">
+        <div class="scale-title">Light</div>
+        <div class="scale-sub">§0 + §1 + §2 core path</div>
+        <div class="scale-output">one-liner output</div>
+      </div>
+      <div class="scale-box" data-s="1" onclick="selectScale(1)">
+        <div class="scale-title">Medium</div>
+        <div class="scale-sub">§3–§6 active</div>
+        <div class="scale-output">+ SRP, DRY, contracts</div>
+      </div>
+      <div class="scale-box" data-s="2" onclick="selectScale(2)">
+        <div class="scale-title">Large</div>
+        <div class="scale-sub">Full SOLID + arch review</div>
+        <div class="scale-output">full summary block</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down"></div>
+
+  <!-- Step 5: Exempt check -->
+  <div style="width:100%;max-width:520px;margin:0 auto">
+    <div class="diamond" style="border-color:var(--color-border-warning)">
+      <span class="step-tag tag-cond">conditional</span>
+      <span class="step-title">Exempt scenario?</span>
+      <div class="step-sub">Script / demo / POC / notebook / "quick delivery"</div>
+    </div>
+
+    <div class="exempt-branch">
+      <!-- No path: full workflow -->
+      <div class="exempt-col exempt-no">
+        <div class="branch-label">No</div>
+        <div class="arrow-down"></div>
+        <div class="step" style="border-color:var(--color-border-info)">
+          <div class="step-title">Execute full workflow</div>
+          <div class="step-sub" id="exec-label">Principles + task workflow active</div>
+        </div>
+      </div>
+
+      <!-- Yes path: bypass -->
+      <div class="exempt-col exempt-yes">
+        <div class="branch-label branch-label-yes">Yes</div>
+        <div class="arrow-down"></div>
+        <div class="step exempt-step">
+          <div class="step-title">Baseline path only</div>
+          <div class="step-sub">§0 applies; §1 limited to §0-only violations · §2–§6 skipped</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="step-tag tag-always" style="font-size:10px">always</span> Included every time</div>
+  <div class="legend-item"><span class="step-tag tag-skill" style="font-size:10px">skill</span> Task-specific workflow</div>
+  <div class="legend-item">⚡ Skill-specific behavior</div>
+</div>
+
+</div><!-- .wrapper -->
+
+<script>
+var skillNames = [
+  'sextant-fix-bug',
+  'sextant-add-feature',
+  'sextant-modify-feature',
+  'sextant-review-code',
+  'sextant-write-tests',
+  'sextant-refine-requirements',
+  'sextant-debug',
+  'sextant-ship',
+  'sextant-plan',
+  'sextant-migrate',
+  'sextant-security',
+  'sextant'
+];
+
+var workflowLabels = [
+  'Bug Fix Workflow — <code>fix-bug/SKILL.md</code>',
+  'New Feature Workflow — <code>add-feature/SKILL.md</code>',
+  'Modify Feature Workflow — <code>modify-feature/SKILL.md</code>',
+  'Code Review Workflow — <code>review-code/SKILL.md</code>',
+  'Test Writing Workflow — <code>write-tests/SKILL.md</code>',
+  'Requirements Workflow — <code>refine-requirements/SKILL.md</code>',
+  'Debug Workflow — <code>debug/SKILL.md</code>',
+  'Ship / PR Prep Workflow — <code>ship/SKILL.md</code>',
+  'Sprint Planning Workflow — <code>plan/SKILL.md</code>',
+  'Migration Workflow — <code>migrate/SKILL.md</code>',
+  'Security Audit Workflow — <code>security/SKILL.md</code>',
+  'No separate workflow — <code>principles/SKILL.md</code> loaded directly as the skill itself'
+];
+
+// Skill-specific behavior annotations (shown in the ⚡ row)
+var featureLabels = [
+  '<strong>Disambiguation gate:</strong> if behavior is changing (not broken), stop and redirect to <code>sextant-modify-feature</code>. <strong>Progress block</strong> at each of the 4 steps. <strong>Confirmation gate</strong> before writing any code — presents root cause + fix plan; Low-risk adds a session-scoped "skip for rest of session" option',
+  '<strong>TDD mode (Step 2.5):</strong> Large tasks default Y — write complete runnable contract tests before implementation; Medium tasks opt-in. Valid red = implementation absent or returns wrong value, not a placeholder. Override via <code>.sextant.yaml</code>: <code>tdd: enforce</code> makes TDD mandatory for all tasks; <code>tdd: default_on</code> makes both Large and Medium default Y. <strong>Progress block</strong> at each step + <strong>confirmation gate</strong> (medium/large: presents implementation plan before writing any code)',
+  '<strong>Disambiguation gate:</strong> if behavior is broken (not intentionally changed), stop and redirect to <code>sextant-fix-bug</code>. <strong>TDD mode (Step 4.5, Large only, default Y):</strong> regression baseline + new behavior contract tests after plan confirmed; opt out for structural-only refactors. Override via <code>.sextant.yaml</code>: <code>tdd: enforce</code> makes TDD mandatory. <strong>Progress block</strong> shows only applicable steps per scale (Lightweight: Step 5 only; Medium: Steps 1, 5, 6; Large: all). <strong>Confirmation gate</strong> (medium/large) before writing any code',
+  '<strong>Mode declaration required</strong> — first output line must be <code>Mode: Review-only</code> or <code>Mode: Review+patch</code>. Upgrade mid-session echoes <code>Mode upgrade: Review-only → Review+patch</code>. <strong>Progress block</strong> at each review dimension',
+  '<strong>Bug-fix entry path:</strong> write reproduction test first (lightweight — skips confirmation gate); if it still fails after the fix, ask the user to re-trigger <code>sextant-fix-bug</code> or continue investigation with baseline rules. <strong>Progress block</strong> at each step + <strong>confirmation gate</strong> for new test modules / full coverage passes (presents boundary matrix before writing tests)',
+  '<strong>Guard:</strong> enter when 🔴 ambiguities exist <em>or</em> user requests decomposition / feasibility assessment. Link <code>sextant-plan</code> for sprint planning after sign-off',
+  '<strong>Disambiguation gate:</strong> can you point to a specific function or line? → Yes: use <code>sextant-fix-bug</code>. No: continue here. Bisection protocol with hypothesis limit gate (3+ eliminations → escalate: request context / <code>git bisect</code> / structured logging)',
+  '<strong>Scope:</strong> produces Markdown output only — does not run CI commands, push branches, or execute <code>git</code> commands on your behalf',
+  '<strong>Upstream skill:</strong> use <code>sextant-refine-requirements</code> first; this skill answers the <em>how</em> and in what order. After plan confirmation, transitions to execution pipeline entry — hands off to each task\'s assigned skill in sequence. Optional state persistence: writes <code>.sextant/state.json</code> (with explicit user confirmation) so sprints can be resumed across sessions',
+  '<strong>Validation gate:</strong> each module is migrated and tested in isolation — never migrate multiple modules between test runs. Each phase is a separate commit. <strong>Progress block</strong> at each phase + <strong>confirmation gate</strong> between phases',
+  '<strong>4-dimension audit:</strong> input validation · auth/authZ · sensitive data · manifest-verifiable dependency checks (exact pinning, lock file, dev/prod separation). Cannot query CVE databases — authoritative scanner required for vulnerability findings. <strong>Progress block</strong> at each of the 4 dimensions (▶ current · ✅ complete · ⬜ pending)',
+  '<strong>Fallback skill — no dynamic injection.</strong> If <code>.gitnexus/</code> is detected, apply GitNexus guidance from <code>tool-gitnexus/SKILL.md</code> for steps marked 🔗'
+];
+
+var currentRoute = -1;
+
+function selectRoute(i) {
+  currentRoute = i;
+  document.querySelectorAll('.route').forEach(function(r, j) {
+    r.classList.toggle('active', j === i);
+  });
+
+  var isFallback = (i === 11);
+  var principlesRow = document.getElementById('inject-principles');
+  var gitnexusRow   = document.getElementById('inject-gitnexus');
+  var workflowRow   = document.getElementById('inject-workflow');
+  var featureRow    = document.getElementById('inject-feature');
+
+  if (isFallback) {
+    principlesRow.style.opacity = '0.45';
+    document.getElementById('principles-label').innerHTML =
+      '<code>principles/SKILL_BODY.md</code> — loaded directly as the skill itself (not injected)' +
+      '<span class="note">Front-loaded: §0·§1·§2 always active → lightweight gate → §3–§6 for medium/large</span>';
+    gitnexusRow.style.opacity = '0.45';
+    document.getElementById('gitnexus-label').innerHTML =
+      '<code>tool-gitnexus/SKILL_BODY.md</code> — <strong>not included</strong> (fallback has no file inclusion)' +
+      '<span class="note">If GitNexus MCP tools are available, Claude applies them via §3.0 note</span>';
+    workflowRow.style.opacity = '0.45';
+    document.getElementById('workflow-label').innerHTML = workflowLabels[i];
+  } else {
+    principlesRow.style.opacity = '1';
+    document.getElementById('principles-label').innerHTML =
+      '<code>principles/SKILL_BODY.md</code> — included via <code>!</code> file directive; front-loaded structure:' +
+      '<div class="principles-structure">' +
+        '<span class="pill pill-always">§P project config</span>' +
+        '<span class="pill pill-always">§0 baselines</span>' +
+        '<span class="pill pill-always">§1 anti-patterns</span>' +
+        '<span class="pill pill-always">§2 communication</span>' +
+        '<span class="pill pill-gate">── lightweight gate ──</span>' +
+        '<span class="pill pill-heavy">§3 task rules</span>' +
+        '<span class="pill pill-heavy">§4 SOLID</span>' +
+        '<span class="pill pill-heavy">§5 DRY/YAGNI</span>' +
+        '<span class="pill pill-heavy">§6 architecture</span>' +
+      '</div>';
+    gitnexusRow.style.opacity = '1';
+    document.getElementById('gitnexus-label').innerHTML =
+      '<code>tool-gitnexus/SKILL_BODY.md</code> — always included; Claude applies it only when GitNexus MCP tools are available';
+    workflowRow.style.opacity = '1';
+    document.getElementById('workflow-label').innerHTML = workflowLabels[i];
+  }
+
+  // Show skill-specific feature row
+  var label = featureLabels[i];
+  if (label) {
+    featureRow.style.display = 'flex';
+    document.getElementById('feature-label').innerHTML = label;
+  } else {
+    featureRow.style.display = 'none';
+  }
+
+  document.getElementById('exec-label').textContent = skillNames[i] + ' workflow active';
+}
+
+function selectScale(i) {
+  document.querySelectorAll('.scale-box').forEach(function(s, j) {
+    s.classList.toggle('active', j === i);
+  });
+}
+</script>
+</body>
+</html>

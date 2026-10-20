@@ -1,0 +1,29 @@
+# Claude Code
+.claude/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Temp / local
+*.log
+*.tmp
+
+# script
+
+# Cursor plugin generated output (run .cursor-plugin/install.py to generate)
+dist/
+.cursor/
